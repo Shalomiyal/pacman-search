@@ -86,18 +86,58 @@ def depthFirstSearch(problem: SearchProblem):
     print("Is the start a goal?", problem.isGoalState(problem.getStartState()))
     print("Start's successors:", problem.getSuccessors(problem.getStartState()))
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    # Fringe is a LIFO stack: the newest node is expanded first (go deep).
+    # Each fringe item is (state, path of actions that reached it).
+    fringe = util.Stack()
+    fringe.push((problem.getStartState(), []))
+    expanded = set()  # graph search: never expand the same state twice
+
+    while not fringe.isEmpty():
+        state, path = fringe.pop()
+        if problem.isGoalState(state):
+            return path
+        if state not in expanded:
+            expanded.add(state)
+            for successor, action, stepCost in problem.getSuccessors(state):
+                fringe.push((successor, path + [action]))
+    return []  # no solution
 
 def breadthFirstSearch(problem: SearchProblem):
     """Search the shallowest nodes in the search tree first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    # Same skeleton as DFS, but the fringe is a FIFO queue:
+    # the oldest node is expanded first (level by level).
+    fringe = util.Queue()
+    fringe.push((problem.getStartState(), []))
+    expanded = set()
+
+    while not fringe.isEmpty():
+        state, path = fringe.pop()
+        if problem.isGoalState(state):
+            return path
+        if state not in expanded:
+            expanded.add(state)
+            for successor, action, stepCost in problem.getSuccessors(state):
+                fringe.push((successor, path + [action]))
+    return []
 
 def uniformCostSearch(problem: SearchProblem):
     """Search the node of least total cost first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    # Fringe is a priority queue ordered by g = total path cost so far.
+    # Each fringe item is (state, path, g).
+    fringe = util.PriorityQueue()
+    fringe.push((problem.getStartState(), [], 0), 0)
+    expanded = set()
+
+    while not fringe.isEmpty():
+        state, path, cost = fringe.pop()
+        if problem.isGoalState(state):
+            return path
+        if state not in expanded:
+            expanded.add(state)
+            for successor, action, stepCost in problem.getSuccessors(state):
+                newCost = cost + stepCost
+                fringe.push((successor, path + [action], newCost), newCost)
+    return []
 
 def nullHeuristic(state, problem=None):
     """
@@ -108,8 +148,23 @@ def nullHeuristic(state, problem=None):
 
 def aStarSearch(problem: SearchProblem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    # Same as UCS, but the priority is f = g + h(state).
+    start = problem.getStartState()
+    fringe = util.PriorityQueue()
+    fringe.push((start, [], 0), heuristic(start, problem))
+    expanded = set()
+
+    while not fringe.isEmpty():
+        state, path, cost = fringe.pop()
+        if problem.isGoalState(state):
+            return path
+        if state not in expanded:
+            expanded.add(state)
+            for successor, action, stepCost in problem.getSuccessors(state):
+                newCost = cost + stepCost
+                priority = newCost + heuristic(successor, problem)
+                fringe.push((successor, path + [action], newCost), priority)
+    return []
 
 
 # Abbreviations
