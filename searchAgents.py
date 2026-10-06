@@ -295,15 +295,17 @@ class CornersProblem(search.SearchProblem):
         Returns the start state (in your state space, not the full Pacman state
         space)
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # State = (position, visitedCorners); visitedCorners is a tuple of
+        # booleans, one per corner, in the same order as self.corners.
+        visited = tuple(self.startingPosition == corner for corner in self.corners)
+        return (self.startingPosition, visited)
 
     def isGoalState(self, state: Any):
         """
         Returns whether this search state is a goal state of the problem.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # Goal when every corner has been visited.
+        return all(state[1])
 
     def getSuccessors(self, state: Any):
         """
@@ -317,6 +319,7 @@ class CornersProblem(search.SearchProblem):
         """
 
         successors = []
+        position, visited = state
         for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
             # Add a successor state to the successor list if the action is legal
             # Here's a code snippet for figuring out whether a new position hits a wall:
@@ -325,7 +328,15 @@ class CornersProblem(search.SearchProblem):
             #   nextx, nexty = int(x + dx), int(y + dy)
             #   hitsWall = self.walls[nextx][nexty]
 
-            "*** YOUR CODE HERE ***"
+            x, y = position
+            dx, dy = Actions.directionToVector(action)
+            nextx, nexty = int(x + dx), int(y + dy)
+            if not self.walls[nextx][nexty]:
+                nextPos = (nextx, nexty)
+                # Mark a corner visited if we are now standing on it.
+                newVisited = tuple(v or nextPos == corner
+                                   for v, corner in zip(visited, self.corners))
+                successors.append(((nextPos, newVisited), action, 1))
 
         self._expanded += 1 # DO NOT CHANGE
         return successors
@@ -360,8 +371,26 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
     corners = problem.corners # These are the corner coordinates
     walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
 
-    "*** YOUR CODE HERE ***"
-    return 0 # Default to trivial solution
+    position, visited = state
+    remaining = [c for c, v in zip(corners, visited) if not v]
+    if not remaining:
+        return 0
+
+    def manhattan(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    # Shortest Manhattan-metric tour through all unvisited corners (at most
+    # 4! = 24 orders). Walls can only make real paths longer, so this is a
+    # lower bound (admissible) and it is consistent.
+    from itertools import permutations
+    best = float('inf')
+    for order in permutations(remaining):
+        total, current = 0, position
+        for corner in order:
+            total += manhattan(current, corner)
+            current = corner
+        best = min(best, total)
+    return best
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
@@ -454,8 +483,21 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     problem.heuristicInfo['wallCount']
     """
     position, foodGrid = state
-    "*** YOUR CODE HERE ***"
-    return 0
+    foodList = foodGrid.asList()
+    if not foodList:
+        return 0
+
+    # Real maze distance (around walls) to the farthest remaining food.
+    # Pacman must at least reach it, so this is admissible; maze distance
+    # obeys the triangle inequality, so it is also consistent.
+    best = 0
+    for food in foodList:
+        key = (position, food)
+        if key not in problem.heuristicInfo:
+            problem.heuristicInfo[key] = mazeDistance(
+                position, food, problem.startingGameState)
+        best = max(best, problem.heuristicInfo[key])
+    return best
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
